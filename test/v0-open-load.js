@@ -37,7 +37,7 @@ Object.keys(testAPIs).forEach(API => {
   describe(`orbit-db - Backward-Compatibility - Open & Load (${API})`, function () {
     this.timeout(config.timeout)
 
-    let ipfsd, ipfs, orbitdb, db, address, store
+    let ipfsd, ipfs, orbitdb, db, address, store, keystore
     let localDataPath
 
     before(async () => {
@@ -50,9 +50,9 @@ Object.keys(testAPIs).forEach(API => {
       await fs.copy(dbFixturesDir, path.join(dbPath, ipfs._peerInfo.id._idB58String, 'cache'))
 
       store = await storage.createStore(path.join(dbPath, ipfs._peerInfo.id._idB58String, 'keys'))
-      const keystore = new Keystore(store)
-
-      let identity = await Identities.createIdentity({ id: ipfs._peerInfo.id._idB58String, migrate: migrate(keyFixtures), keystore })
+      keystore = new Keystore(store)
+      const identities = new Identities()
+      const identity = await identities.createIdentity(keystore, { id: ipfs._peerInfo.id._idB58String, migrate: migrate(keyFixtures) })
       orbitdb = await OrbitDB.createInstance(ipfs, { directory: dbPath, identity, keystore })
 
     })
@@ -69,7 +69,7 @@ Object.keys(testAPIs).forEach(API => {
 
     describe('Open & Load', function() {
       before(async () => {
-        db = await orbitdb.open('/orbitdb/QmWDUfC4zcWJGgc9UHn1X3qQ5KZqBv4KCiCtjnpMmBT8JC/v0-db', { accessController: { type: 'legacy-ipfs', skipManifest: true } })
+        db = await orbitdb.open('/orbitdb/QmWDUfC4zcWJGgc9UHn1X3qQ5KZqBv4KCiCtjnpMmBT8JC/v0-db', { keystore, accessController: { type: 'legacy-ipfs', skipManifest: true } })
         const localFixtures = await db._cache.get('_localHeads')
         const remoteFixtures = await db._cache.get('_remoteHeads')
         db._cache.set(db.localHeadsPath, localFixtures)

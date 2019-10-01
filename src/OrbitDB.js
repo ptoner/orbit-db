@@ -38,8 +38,8 @@ class OrbitDB {
     if (!isDefined(identity)) { throw new Error('identity is a required argument. See https://github.com/orbitdb/orbit-db/blob/master/API.md#createinstance') }
 
     this._ipfs = ipfs
-    this.identities = identities
-    this.identity = identity
+    this._identities = identities
+    this._identity = identity
     this.id = options.peerId
     this._pubsub = options && options.broker
       ? new options.broker(this._ipfs) // eslint-disable-line
@@ -58,6 +58,14 @@ class OrbitDB {
     AccessControllers = options.AccessControllers || AccessControllers
   }
 
+  get identity () {
+    return this._identity
+  }
+
+  get identities () {
+    return this._identities
+  }
+
   get cache () { return this.caches[this.directory].cache }
 
   static async createInstance (ipfs, options = {}) {
@@ -74,20 +82,16 @@ class OrbitDB {
       options.storage = Storage(null, storageOptions)
     }
 
-    if (options.identity && options.identity.provider.keystore) {
-      options.keystore = options.identity.provider.keystore
-    }
-
     if (!options.keystore) {
       const keystorePath = path.join(options.directory, id, '/keystore')
       let keyStorage = await options.storage.createStore(keystorePath)
       options.keystore = new Keystore(keyStorage)
     }
 
-    const identities = await Identities.createInstance(options.keystore)
-
+    const identities = options.identities || new Identities()
     if (!options.identity) {
-      options.identity = await identities.createIdentity({
+      options.identity = await identities.createIdentity(options.keystore, {
+        type: options.identityType || 'orbitdb',
         id: options.id || id
       })
     }
@@ -200,6 +204,7 @@ class OrbitDB {
     const opts = Object.assign({ replicate: true }, options, {
       accessController: accessController,
       cache: options.cache,
+      keystore: options.keystore || this.keystore,
       onClose: this._onClose.bind(this),
       onDrop: this._onDrop.bind(this),
       onLoad: this._onLoad.bind(this)
